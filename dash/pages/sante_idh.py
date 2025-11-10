@@ -26,6 +26,25 @@ df = (
     .merge(dim_socio, on="id_socio", how="left")
     .merge(dim_sante, on="id_sante", how="left") 
 )
+
+# =====================================================
+# 🔹 Calcul des indices intermédiaires pour démonstration
+# =====================================================
+
+# Indice de revenu déjà présent
+df['indice_revenu'] = df['indice_revenu']
+
+# Indice de santé (normalisé)
+df['indice_sante'] = (
+    df['esperance_vie'].fillna(df['esperance_vie'].mean()) / df['esperance_vie'].max()
+    - df['mortalite_adulte'].fillna(0) / df['mortalite_adulte'].max()
+    - df['deces_nourrissons'].fillna(0) / df['deces_nourrissons'].max()
+)
+
+# Corrélation
+corr_income = df['indice_revenu'].corr(df['IDH'])
+corr_health = df['indice_sante'].corr(df['IDH'])
+
 # ================================
 #  Calcul des corrélations
 # ================================
@@ -122,86 +141,136 @@ vuln_cols = [
 ]
 df["vulnerabilite"] = df[vuln_cols].fillna(0).mean(axis=1)
 
-# ================================
-# 🔹 Layout
-# ================================
 layout = dbc.Container([
 
-    html.H2(" Dashboard Santé & IDH", className="mb-4"),
+    # ================================
+    # HEADER TITLE
+    # ================================
+    html.Div([
+        html.H1("Dashboard Santé & Développement Humain", 
+                className="text-center text-light mb-4 fw-bold"),
+        html.H5("Analyse avancée Santé / IDH / Vulnérabilité", 
+                className="text-center text-secondary mb-5"),
+    ], className="py-3 rounded-3 shadow-lg bg-dark"),
 
-    dbc.Row([
-        dbc.Col(dbc.Card([
-            dbc.CardBody([
-                html.H4("IDH moyen"),
-                html.H2(id="kpi_idh_moyen")
-            ])
-        ], class_name="mb-3")),
-        dbc.Col(dbc.Card([
-            dbc.CardBody([
-                html.H4("Espérance de vie moyenne"),
-                html.H2(id="kpi_ev_moyenne")
-            ])
-        ], class_name="mb-3")),
-        dbc.Col(dbc.Card([
-            dbc.CardBody([
-                html.H4("Vulnérabilité moyenne"),
-                html.H2(id="kpi_vuln_moyenne")
-            ])
-        ], class_name="mb-3")),
-    ]),
+    html.Br(),
 
-    html.Hr(),
+    # ====================================================
+    # SECTION : KPI
+    # ====================================================
+    html.Div([
+        html.H3("Indicateurs clés (KPI)", className="text-light mb-3 fw-semibold"),
 
-    dbc.Row([
-        dbc.Col([
-            html.Label("Filtrer par statut :"),
-            dcc.Dropdown(
-                id="filter_statut",
-                options=[{"label": s, "value": s} for s in sorted(df["statut"].dropna().unique())],
-                value=sorted(df["statut"].dropna().unique()),
-                multi=True
-            )
-        ], width=4),
-    ], class_name="mb-2"),
+        dbc.Row([
+            dbc.Col(dbc.Card([
+                dbc.CardBody([
+                    html.H5("IDH moyen", className="text-secondary"),
+                    html.H2(id="kpi_idh_moyen", className="text-primary fw-bold")
+                ])
+            ], class_name="shadow-lg border-0 rounded-4 bg-dark"), width=4),
 
-    dbc.Row([
-        dbc.Col(dcc.Graph(id="graph_idh"), width=12),
-    ]),
+            dbc.Col(dbc.Card([
+                dbc.CardBody([
+                    html.H5("Espérance de vie moyenne", className="text-secondary"),
+                    html.H2(id="kpi_ev_moyenne", className="text-info fw-bold")
+                ])
+            ], class_name="shadow-lg border-0 rounded-4 bg-dark"), width=4),
 
-    html.Hr(),
+            dbc.Col(dbc.Card([
+                dbc.CardBody([
+                    html.H5("Vulnérabilité moyenne", className="text-secondary"),
+                    html.H2(id="kpi_vuln_moyenne", className="text-danger fw-bold")
+                ])
+            ], class_name="shadow-lg border-0 rounded-4 bg-dark"), width=4),
+        ], class_name="g-4")
+    ], className="bg-gradient py-4 px-3 rounded-4 mb-5 border border-secondary"),
 
-    # Section : Evolution espérance de vie par continent
-    dbc.Row([
-        dbc.Col(dcc.Graph(id="graph_ev_continent", figure=fig_ev_continent), width=12)
-    ]),
-    html.Hr(),
-
-    dbc.Row([
-        dbc.Col(
-        dcc.Graph(id="graph_corr_indicateurs", figure=fig_corr),
-        width=12
-    )
-    ]),
-    html.Hr(),
-
-    dbc.Row([
-       dbc.Col(dcc.Graph(id="graph_vulnerabilite_map"), width=12),
-    ]),
-    html.Hr(),
-
+    # ====================================================
+    # SECTION FILTRE
+    # ====================================================
+    html.Div([
+        html.H3("Filtres", className="text-light fw-semibold mb-3"),
+        dbc.Row([
+            dbc.Col([
+                html.Label("Filtrer par statut :", className="text-secondary"),
+                dcc.Dropdown(
+                    id="filter_statut",
+                    options=[{"label": s, "value": s} for s in sorted(df["statut"].dropna().unique())],
+                    value=sorted(df["statut"].dropna().unique()),
+                    multi=True,
+                    className="text-dark"
+                )
+            ], width=4),
+        ]),
+    ], className="bg-dark shadow-lg rounded-4 p-4 mb-5 border border-secondary"),
 
 
-    dbc.Row([
-        dbc.Col(dcc.Graph(id="graph_vuln"), width=12),
-    ]),
+    # ====================================================
+    # SECTION 1 : IDH & ESPÉRANCE VIE
+    # ====================================================
+    html.Div([
+        html.H3("Relation Santé, Développement et Évolution Globale", 
+                className="text-light fw-semibold mb-4"),
 
-    html.Hr(),
+        dbc.Row([
+            dbc.Col(dbc.Card([
+                dbc.CardHeader("IDH vs Espérance de vie", className="bg-secondary text-light fw-bold"),
+                dbc.CardBody(dcc.Graph(id="graph_idh"))
+            ], class_name="shadow-lg border-0 rounded-4 bg-dark"), width=6),
 
-    dbc.Row([
-        dbc.Col(dcc.Graph(id="graph_corr"), width=12),
-    ]),
+            dbc.Col(dbc.Card([
+                dbc.CardHeader("Évolution de l'espérance de vie par continent", 
+                                className="bg-secondary text-light fw-bold"),
+                dbc.CardBody(dcc.Graph(id="graph_ev_continent", figure=fig_ev_continent))
+            ], class_name="shadow-lg border-0 rounded-4 bg-dark"), width=6),
+        ], class_name="g-4")
+    ], className="mb-5"),
+
+
+    # ====================================================
+    # SECTION 2 : CORRÉLATIONS  
+    # ====================================================
+    html.Div([
+        html.H3("Corrélations entre indicateurs de santé", 
+                className="text-light fw-semibold mb-4"),
+
+        dbc.Row([
+            dbc.Col(dbc.Card([
+                dbc.CardHeader("Corrélation IDH / Santé", className="bg-primary text-light fw-bold"),
+                dbc.CardBody(dcc.Graph(id="graph_corr_indicateurs"))
+            ], class_name="shadow-lg border-0 rounded-4 bg-dark"), width=6),
+
+            dbc.Col(dbc.Card([
+                dbc.CardHeader("Matrice de corrélation globale", className="bg-primary text-light fw-bold"),
+                dbc.CardBody(dcc.Graph(id="graph_corr"))
+            ], class_name="shadow-lg border-0 rounded-4 bg-dark"), width=6),
+        ], class_name="g-4")
+    ], className="mb-5"),
+
+
+    # ====================================================
+    # SECTION 3 : VULNÉRABILITÉ 
+    # ====================================================
+    html.Div([
+        html.H3("Analyse de la vulnérabilité sanitaire", 
+                className="text-light fw-semibold mb-4"),
+
+        dbc.Row([
+            dbc.Col(dbc.Card([
+                dbc.CardHeader("Distribution par statut", className="bg-danger text-light fw-bold"),
+                dbc.CardBody(dcc.Graph(id="graph_vuln"))
+            ], class_name="shadow-lg border-0 rounded-4 bg-dark"), width=6),
+
+            dbc.Col(dbc.Card([
+                dbc.CardHeader("Carte mondiale de vulnérabilité", 
+                                className="bg-danger text-light fw-bold"),
+                dbc.CardBody(dcc.Graph(id="graph_vulnerabilite_map"))
+            ], class_name="shadow-lg border-0 rounded-4 bg-dark"), width=6),
+        ], class_name="g-4")
+    ], className="mb-5"),
+
+
 ], fluid=True)
-
 
 # ================================
 # 🔹 Callbacks
