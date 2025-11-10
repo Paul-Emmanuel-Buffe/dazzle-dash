@@ -165,7 +165,7 @@ layout = dbc.Container([
             dbc.Col(dbc.Card([
                 dbc.CardBody([
                     html.H5("IDH moyen", className="text-secondary"),
-                    html.H2(id="kpi_idh_moyen", className="text-primary fw-bold")
+                    html.H2(id="kpi_idh_moyen", className="text-info fw-bold")
                 ])
             ], class_name="shadow-lg border-0 rounded-4 bg-dark"), width=4),
 
